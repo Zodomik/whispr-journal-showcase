@@ -39,21 +39,19 @@ Built and published by **[Oğuz Tonyalı](https://github.com/Zodomik)**. This re
 | Journal Lock | LocalAuthentication | Device authentication before opening protected journal content. |
 | Purchases | RevenueCat, StoreKit | Subscription/lifetime access and purchase restoration. |
 
-## Engineering highlights
+## Implementation notes
 
-### Local persistence as a product decision
+SwiftUI app; local SwiftData journal; Apple Speech Recognition; device-owner authentication; no custom journal backend.
 
-SwiftData keeps journal content on the device without requiring a journal account. Entry models support more than plain text: tags, moods and browsing preferences shape the experience.
+- Session UUIDs reject stale speech callbacks after stop/restart.
+- Partial transcription is joined to a stable editable draft prefix.
+- Local entry filtering and lightweight word-preserving book pages.
 
-### Voice capture that stays editable
-
-Speech recognition feeds text into the composition flow, so dictation remains a draft the writer can revise before saving. Audio capture and recognition have distinct lifecycle responsibilities.
-
-### Privacy with precise boundaries
-
-Local journal storage and device authentication serve different needs. Optional Apple dictation may use Apple servers when on-device recognition is unavailable; purchases are handled by Apple and RevenueCat.
-
-→ **[Explore the architecture and design decisions](docs/ENGINEERING.md)**
+| Read more | What is covered |
+| --- | --- |
+| [Architecture and frameworks](docs/ENGINEERING.md) | Runtime components, backend structure and framework responsibilities |
+| [Database and local data](docs/DATA_MODEL.md) | Entities, relationships, constraints and persistence choices |
+| [Algorithms and implementation choices](docs/ALGORITHMS.md) | Calculations, example flows and the limits of each approach |
 
 ## Try the product
 

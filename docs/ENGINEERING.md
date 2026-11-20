@@ -1,47 +1,51 @@
-# Whispr Journal · Engineering notes
+# Whispr Journal · Architecture
 
-This overview describes the product’s implementation at a component level. It accompanies the [product showcase](../README.md).
+*Implementation notes checked against the working project on 20 November 2026. Store builds may differ as the project evolves.*
 
-## Component map
+Whispr is a local journal with optional speech-to-text. It uses Apple platform frameworks for persistence, dictation and device authentication, rather than a custom journal backend.
+
+| Area | Framework / component | Role |
+| --- | --- | --- |
+| Interface | Swift, SwiftUI | Composition, browsing, calendar and reading modes |
+| Database | SwiftData, ModelContainer, ModelContext, Query | Stored entries, sorted retrieval and saves |
+| Microphone | AVFoundation, AVAudioEngine | Audio session and buffer capture |
+| Transcription | Speech, SFSpeechRecognizer | Partial/final speech recognition and locale selection |
+| Access gate | LocalAuthentication, LAContext | Device-owner authentication for Journal Lock |
+| Preferences | AppStorage / UserDefaults | Theme, language, reading mode and lock preference |
+| Purchases | RevenueCat, StoreKit | Premium subscription/lifetime access |
+| Sharing | UIKit, UIActivityViewController | Export an entry through the system share sheet |
 
 ```mermaid
 flowchart TD
-A[Write or dictate] --> B[Editable entry]
-B --> C[SwiftData on device]
-C --> D[Search and journal browsing]
-C --> E[Book-style reader]
-F[Device authentication] --> D
-G[Apple Speech Recognition] --> A
+    Mic[Microphone] --> Engine[Audio engine]
+    Engine --> Speech[Apple Speech Recognition]
+    Speech --> Draft[Editable draft]
+    Keyboard[Typed text] --> Draft
+    Draft --> Store[(SwiftData entries)]
+    Store --> Browse[Search and calendar]
+    Store --> Read[Scroll or paged reading]
+    Store --> Share[Text sharing]
+    Lock[Device authentication gate] --> Browse
 ```
 
-The diagram emphasizes responsibilities and data flow. Platform integrations can have their own independent lifecycle.
+## Dictation is part of composition
 
-## Design decisions
+Speech recognition does not create a final entry directly. Partial transcription is combined with the text already in the draft, and the user can edit before saving. `SpeechRecognizer` owns permission, audio-engine and recognition-task lifecycles.
 
-### Local persistence as a product decision
+When supported, the recognition request requires on-device recognition. Otherwise optional dictation can use Apple’s recognition service. Saved journal storage is local, but that is a different boundary from the service used to recognize speech.
 
-SwiftData keeps journal content on the device without requiring a journal account. Entry models support more than plain text: tags, moods and browsing preferences shape the experience.
+## Persistence and reading
 
-### Voice capture that stays editable
+The app creates a SwiftData container for `JournalEntry`. Views query entries by creation date and use ModelContext to save changes. Search filters title, content and tags from the fetched entry collection.
 
-Speech recognition feeds text into the composition flow, so dictation remains a draft the writer can revise before saving. Audio capture and recognition have distinct lifecycle responsibilities.
+Book mode groups words into approximate 700-character chunks and displays them in a paged TabView. Each page can also scroll. This is a lightweight reading presentation, distinct from NovelVerse’s TextKit layout-based pagination.
 
-### Privacy with precise boundaries
+## Journal Lock
 
-Local journal storage and device authentication serve different needs. Optional Apple dictation may use Apple servers when on-device recognition is unavailable; purchases are handled by Apple and RevenueCat.
+The lock state is initialized from the saved preference. Going to the background locks the app again when the option is enabled. Unlock uses device-owner authentication, which can use the device’s supported biometric/passcode mechanism.
 
-## Stack reference
+This is an application access gate. The implementation should not be described as a custom encrypted database or end-to-end encrypted journal service.
 
-| Area | Technologies | Responsibility |
-| --- | --- | --- |
-| Interface | Swift, SwiftUI | Composition, journal browsing, themes and book-style reading. |
-| Persistence | SwiftData | Structured journal entries and local data storage. |
-| Dictation | Speech, AVFoundation | Speech recognition, microphone capture and recording-session lifecycle. |
-| Journal Lock | LocalAuthentication | Device authentication before opening protected journal content. |
-| Purchases | RevenueCat, StoreKit | Subscription/lifetime access and purchase restoration. |
+**Code landmarks:** `JournalEntry`, `SpeechRecognizer`, `AppLockManager`, `JournalListView`, `BookReadingView`, `NewEntryView` and `SubscriptionManager`.
 
-## Scope
-
-The technology summary was checked against the application’s Swift imports, project configuration and relevant service/model implementations. Backend technologies, where listed, were checked against the associated package manifest and database schema. Store screenshots illustrate the released product; the private working project may continue evolving after release.
-
-This documentation publishes no credentials, deployment configuration, private endpoints or application source. Product behavior and supported devices are described in the [current App Store listing](https://apps.apple.com/us/app/whispr-journal-voice-diary/id6806876874).
+**Continue:** [Local data model](DATA_MODEL.md) · [Implementation choices](ALGORITHMS.md) · [Product](../README.md)
